@@ -1,0 +1,5 @@
+"channelId","channelName","description"
+1,RETAIL,Customer originated from Retail Stores
+2,WEB,Customer originated from Online properties
+3,PARTNER,Customer referred from Partners
+9,OTHER,Unattributed customer origination

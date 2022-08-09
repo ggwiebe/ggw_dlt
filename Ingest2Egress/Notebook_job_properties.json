@@ -1,0 +1,85 @@
+{
+    "settings": {
+        "email_notifications": {
+            "on_success": [
+                "glenn.wiebe@databricks.com"
+            ],
+            "on_failure": [
+                "glenn.wiebe@databricks.com"
+            ],
+            "no_alert_for_skipped_runs": true
+        },
+        "name": "GGW Ingest2Publish-Notebooks",
+        "schedule": {
+            "quartz_cron_expression": "12 10 14 * * ?",
+            "timezone_id": "UTC",
+            "pause_status": "PAUSED"
+        },
+        "max_concurrent_runs": 1,
+        "tasks": [
+            {
+                "existing_cluster_id": "0817-201129-siren342",
+                "notebook_task": {
+                    "notebook_path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/Ingest2Egress/1. IngestRef2Table",
+                    "base_parameters": {
+                        "db_name": "ggw_ods"
+                    }
+                },
+                "timeout_seconds": 30,
+                "email_notifications": {},
+                "task_key": "getRefData"
+            },
+            {
+                "existing_cluster_id": "0817-201129-siren342",
+                "notebook_task": {
+                    "notebook_path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/Ingest2Egress/2. IngestDaily2Table",
+                    "base_parameters": {
+                        "db_name": "ggw_ods"
+                    }
+                },
+                "timeout_seconds": 60,
+                "email_notifications": {},
+                "task_key": "getDailyData"
+            },
+            {
+                "existing_cluster_id": "0817-201129-siren342",
+                "notebook_task": {
+                    "notebook_path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/Ingest2Egress/3. TransformData",
+                    "base_parameters": {
+                        "db_name": "ggw_ods",
+                        "date_from": "2022-01-01",
+                        "date_to": "2022-02-28"
+                    }
+                },
+                "timeout_seconds": 120,
+                "email_notifications": {},
+                "task_key": "TransformData",
+                "depends_on": [
+                    {
+                        "task_key": "getRefData"
+                    },
+                    {
+                        "task_key": "getDailyData"
+                    }
+                ]
+            },
+            {
+                "existing_cluster_id": "0817-201129-siren342",
+                "notebook_task": {
+                    "notebook_path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/Ingest2Egress/4. PublishTableAsCsv",
+                    "base_parameters": {
+                        "db_name": "ggw_ods"
+                    }
+                },
+                "timeout_seconds": 60,
+                "email_notifications": {},
+                "task_key": "PublishData",
+                "depends_on": [
+                    {
+                        "task_key": "TransformData"
+                    }
+                ]
+            }
+        ]
+    }
+}

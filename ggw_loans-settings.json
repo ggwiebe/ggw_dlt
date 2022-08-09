@@ -1,0 +1,28 @@
+{
+    "name": "GGW Loans",
+    "storage": "/dbfs/FileStore/Users/glenn.wiebe@databricks.com/dlt_loans",
+    "clusters": [
+        {
+            "label": "default",
+            "autoscale": {
+                "min_workers": 1,
+                "max_workers": 3
+            }
+        }
+    ],
+    "libraries": [
+        {
+            "notebook": {
+                "path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/1a. SQL Pipeline"
+            }
+        },
+        {
+            "notebook": {
+                "path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/1b. Python Pipeline"
+            }
+        }
+    ],
+    "target": "ggw_loans",
+    "continuous": false,
+    "development": true
+}

@@ -1,0 +1,36 @@
+{
+    "name": "GGW Retail Customers (cdc)",
+    "storage": "abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/dlt_storage",
+    "configuration": {
+        "pipelines.applyChangesPreviewEnabled": "true",
+        "spark.hadoop.fs.azure.account.auth.type.ggwstdlrs.dfs.core.windows.net": "OAuth",
+        "spark.hadoop.fs.azure.account.oauth2.client.endpoint.ggwstdlrs.dfs.core.windows.net": "https://login.microsoftonline.com/9f37a392-f0ae-4280-9796-f1864a10effc/oauth2/token",
+        "spark.hadoop.fs.azure.account.oauth.provider.type.ggwstdlrs.dfs.core.windows.net": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+        "spark.hadoop.fs.azure.account.oauth2.client.id.ggwstdlrs.dfs.core.windows.net": "{{secrets/rg_secret/ggw_sp_app_client_id}}",
+        "spark.hadoop.fs.azure.account.oauth2.client.secret.ggwstdlrs.dfs.core.windows.net": "{{secrets/rg_secret/ggw_sp_secret}}"
+    },
+    "clusters": [
+        {
+            "label": "default",
+            "autoscale": {
+                "min_workers": 1,
+                "max_workers": 3
+            }
+        }
+    ],
+    "libraries": [
+        {
+            "notebook": {
+                "path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/applychanges/CustomerApplyChanges"
+            }
+        },
+        {
+            "notebook": {
+                "path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/applychanges/CustomerApplyChanges-quarantine"
+            }
+        }
+    ],
+    "target": "ggw_retail",
+    "continuous": false,
+    "development": true
+}

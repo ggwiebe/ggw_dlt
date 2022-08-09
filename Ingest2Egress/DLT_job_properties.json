@@ -1,0 +1,88 @@
+{
+    "settings": {
+        "email_notifications": {},
+        "name": "GGW Ingest2Publish-DLT",
+        "max_concurrent_runs": 1,
+        "tasks": [
+            {
+                "job_cluster_key": "GGW_Ingest2Publish_cluster",
+                "notebook_task": {
+                    "notebook_path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/Ingest2Egress/1-getRefData",
+                    "base_parameters": {
+                        "db_name": "ggw_ods"
+                    }
+                },
+                "timeout_seconds": 60,
+                "email_notifications": {},
+                "task_key": "getRefData"
+            },
+            {
+                "job_cluster_key": "GGW_Ingest2Publish_cluster",
+                "notebook_task": {
+                    "notebook_path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/Ingest2Egress/2-getDailyData",
+                    "base_parameters": {
+                        "db_name": "ggw_ods"
+                    }
+                },
+                "timeout_seconds": 60,
+                "email_notifications": {},
+                "task_key": "getDailyData"
+            },
+            {
+                "pipeline_task": {
+                    "pipeline_id": "bfc6f284-0160-4147-8294-2e5535016d44"
+                },
+                "timeout_seconds": 600,
+                "email_notifications": {},
+                "task_key": "Ingest2Gold",
+                "depends_on": [
+                    {
+                        "task_key": "getRefData"
+                    },
+                    {
+                        "task_key": "getDailyData"
+                    }
+                ]
+            },
+            {
+                "job_cluster_key": "GGW_Ingest2Publish_cluster",
+                "notebook_task": {
+                    "notebook_path": "/Repos/glenn.wiebe@databricks.com/db-fe-dlt/dlt/Ingest2Egress/4. PublishTableAsCsv",
+                    "base_parameters": {
+                        "db_name": "ggw_ods"
+                    }
+                },
+                "timeout_seconds": 60,
+                "email_notifications": {},
+                "task_key": "PublishData",
+                "depends_on": [
+                    {
+                        "task_key": "Ingest2Gold"
+                    }
+                ]
+            }
+        ],
+        "job_clusters": [
+            {
+                "job_cluster_key": "GGW_Ingest2Publish_cluster",
+                "new_cluster": {
+                    "spark_version": "9.1.x-scala2.12",
+                    "spark_conf": {
+                        "spark.databricks.delta.preview.enabled": "true"
+                    },
+                    "azure_attributes": {
+                        "availability": "ON_DEMAND_AZURE",
+                        "first_on_demand": 1,
+                        "spot_bid_max_price": -1
+                    },
+                    "node_type_id": "Standard_DS3_v2",
+                    "spark_env_vars": {
+                        "PYSPARK_PYTHON": "/databricks/python3/bin/python3"
+                    },
+                    "enable_elastic_disk": true,
+                    "num_workers": 8
+                }
+            }
+        ]
+    }
+}
