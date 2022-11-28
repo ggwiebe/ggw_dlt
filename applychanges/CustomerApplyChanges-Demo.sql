@@ -9,8 +9,8 @@
 
 -- COMMAND ----------
 
--- CREATE WIDGET TEXT root_location DEFAULT "/Users/glenn.wiebe@databricks.com/";
-CREATE WIDGET TEXT root_location DEFAULT "abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/";
+CREATE WIDGET TEXT root_location DEFAULT "/Users/glenn.wiebe@databricks.com/";
+-- CREATE WIDGET TEXT root_location DEFAULT "abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/";
 CREATE WIDGET TEXT db_name DEFAULT "ggw_retail";
 CREATE WIDGET TEXT data_loc DEFAULT "/data";
 -- REMOVE WIDGET old
@@ -19,8 +19,10 @@ CREATE WIDGET TEXT data_loc DEFAULT "/data";
 
 -- MAGIC %python
 -- MAGIC db_name = dbutils.widgets.get('db_name')
+-- MAGIC data_loc = dbutils.widgets.get('data_loc')
+-- MAGIC root_location = dbutils.widgets.get('root_location')
 -- MAGIC 
--- MAGIC print("Running CustomerApplyChanges ")
+-- MAGIC print("Running CustomerApplyChanges into db {}, using root location: {}".format(db_name,root_location))
 
 -- COMMAND ----------
 
@@ -28,9 +30,12 @@ CREATE WIDGET TEXT data_loc DEFAULT "/data";
 CREATE DATABASE IF NOT EXISTS $db_name
 LOCATION "$root_location/$db_name/$db_name.db";
 
+USE ${db_name};
+SELECT current_database()
+
 -- COMMAND ----------
 
-DESCRIBE DATABASE EXTENDED $db_name;
+DESCRIBE DATABASE EXTENDED ${db_name};
 
 -- COMMAND ----------
 
@@ -40,7 +45,7 @@ DESCRIBE DATABASE EXTENDED $db_name;
 
 -- COMMAND ----------
 
--- THIS IS NOW A REFERENCE LOAD DLT PIPELINE
+-- This is now a reference load DLT pipeline (run that before this)
 
 -- -- Customer Channel Reference Table
 -- -- DROP TABLE $db_name.channel;
@@ -74,36 +79,40 @@ DESCRIBE DATABASE EXTENDED $db_name;
 -- MAGIC %python
 -- MAGIC # dbutils.fs.mkdirs('/Users/glenn.wiebe@databricks.com/{}/data/in'.format(db_name))
 -- MAGIC # dbutils.fs.mkdirs('/Users/glenn.wiebe@databricks.com/{}/data/out'.format(db_name))
--- MAGIC dbutils.fs.ls('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/{}/data'.format(db_name))
+-- MAGIC # dbutils.fs.ls('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/{}/data'.format(db_name))
+-- MAGIC 
+-- MAGIC display(dbutils.fs.ls('/Users/glenn.wiebe@databricks.com/{}/data/'.format(db_name)))
+-- MAGIC display(dbutils.fs.ls('/Users/glenn.wiebe@databricks.com/{}/data/in/'.format(db_name)))
+-- MAGIC # dbutils.fs.rm('/Users/glenn.wiebe@databricks.com/{}/data/in/'.format(db_name),True)
 
 -- COMMAND ----------
 
 -- MAGIC %python
--- MAGIC print("ggw_retail.customers_source; path: {}".format("$root_location/$db_name/$data_loc/*.csv"))
+-- MAGIC print("ggw_retail.customers_source path: {}{}/in/*.csv".format(root_location,data_loc,db_name))
 
 -- COMMAND ----------
 
 -- Create a "table" definition against all CSV files in the data location; This emulates the source system (pre-load, all data that will be loaded)
-DROP TABLE $db_name.customers_source ;
-CREATE TABLE $db_name.customers_source 
+DROP TABLE IF EXISTS customers_source ;
+CREATE TABLE customers_source 
   (
       id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string
   )
  USING CSV
 OPTIONS (
-    path "$root_location/$db_name/$data_loc/*.csv",
+    path "$root_location$data_loc/customer*.csv",
     header "true",
     -- inferSchema "true",
     mode "FAILFAST",
     schema 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, '
   )
 ;
-
+SELECT "$root_location$data_loc/customer*.csv"
 
 -- COMMAND ----------
 
 SELECT *
-  FROM $db_name.customers_source
+  FROM customers_source
  ORDER BY update_dt, id ASC;
 
 -- COMMAND ----------
@@ -118,20 +127,33 @@ SELECT *
 
 -- COMMAND ----------
 
--- MAGIC %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-1-insert.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
+-- MAGIC %python
+-- MAGIC # display(dbutils.fs.ls("file:/Workspace/Repos/glenn.wiebe@databricks.com/ggw_dlt/applychanges/data"))
+-- MAGIC # https://adb-984752964297111.11.azuredatabricks.net/?o=984752964297111#folder/3016324294426904
+-- MAGIC display(dbutils.fs.ls("/Users/glenn.wiebe@databricks.com/ggw_retail/data/"))
+
+-- COMMAND ----------
+
+-- MAGIC %python
+-- MAGIC # dbutils.fs.cp("file:/Workspace/Repos/glenn.wiebe@databricks.com/ggw_dlt/applychanges/data/customer-1-insert.csv","/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/")
+-- MAGIC # %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-1-insert.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
+-- MAGIC # dbutils.fs.rm("/Users/glenn.wiebe@databricks.com/{}/data/in/*.csv".format(db_name))
+-- MAGIC # dbutils.fs.rm("/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/customer-2-append.csv")
+-- MAGIC dbutils.fs.cp("/Users/glenn.wiebe@databricks.com/ggw_retail/data/customer-1-insert.csv","/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/")
+-- MAGIC display(dbutils.fs.ls("/Users/glenn.wiebe@databricks.com/ggw_retail/data/in"))
 
 -- COMMAND ----------
 
 -- Create a "table" definition against all CSV files in the cloudFiles location (e.g. /data/in)
 -- This cannot be done until some records are in /data/in
-DROP TABLE $db_name.customers_raw;
-CREATE TABLE $db_name.customers_raw 
+DROP TABLE IF EXISTS customers_raw;
+CREATE TABLE customers_raw 
   (
       id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string
   )
  USING CSV
 OPTIONS (
-    path "$root_location/$db_name/$data_loc/in/*.csv",
+    path "$root_location$db_name$data_loc/in/",
     header "true",
     -- inferSchema "true",
     mode "PERMISSIVE", -- "FAILFAST",
@@ -139,6 +161,7 @@ OPTIONS (
   )
 ;
 
+SELECT "$root_location$db_name$data_loc/customer*.csv"
 
 -- COMMAND ----------
 
@@ -172,7 +195,9 @@ SELECT *
 
 -- COMMAND ----------
 
--- MAGIC %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-2-append.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
+-- MAGIC %python
+-- MAGIC dbutils.fs.cp("/Users/glenn.wiebe@databricks.com/ggw_retail/data/customer-2-append.csv", "/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/")
+-- MAGIC # %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-2-append.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
 
 -- COMMAND ----------
 
@@ -181,7 +206,7 @@ SELECT *
 -- COMMAND ----------
 
 -- Check Raw
-REFRESH TABLE $db_name.customers_raw;
+REFRESH TABLE customers_raw;
 SELECT * 
   FROM ggw_retail.customers_raw
  ORDER BY update_dt, id ASC
@@ -216,7 +241,9 @@ SELECT *
 
 -- COMMAND ----------
 
--- MAGIC %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-3-update.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
+-- MAGIC %python
+-- MAGIC dbutils.fs.cp("/Users/glenn.wiebe@databricks.com/ggw_retail/data/customer-3-update.csv", "/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/")
+-- MAGIC # %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-3-update.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
 
 -- COMMAND ----------
 
@@ -225,7 +252,7 @@ SELECT *
 -- COMMAND ----------
 
 -- Check Raw
-REFRESH TABLE $db_name.customers_raw;
+REFRESH TABLE customers_raw;
 SELECT * 
   FROM ggw_retail.customers_raw
  ORDER BY update_dt, id ASC
@@ -235,7 +262,7 @@ SELECT *
 
 -- Check Bronze 
 SELECT * 
-  FROM ggw_retail.customer_bronze
+  FROM customer_bronze
  ORDER BY update_dt, id ASC
 ;
 
@@ -243,7 +270,7 @@ SELECT *
 
 -- Check Silver 
 SELECT * 
-  FROM ggw_retail.customer_silver
+  FROM customer_silver
  ORDER BY update_dt, id ASC
 ;
 
@@ -251,7 +278,7 @@ SELECT *
 
 -- Check GOLD 
 SELECT * 
-  FROM ggw_retail.channel_customers_gold
+  FROM channel_customers_gold
 ;
 
 -- COMMAND ----------
@@ -260,7 +287,9 @@ SELECT *
 
 -- COMMAND ----------
 
--- MAGIC %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-4-delete.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
+-- MAGIC %python
+-- MAGIC dbutils.fs.cp("/Users/glenn.wiebe@databricks.com/ggw_retail/data/customer-4-delete.csv", "/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/")
+-- MAGIC # %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-4-delete.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
 
 -- COMMAND ----------
 
@@ -315,7 +344,9 @@ SELECT *
 
 -- COMMAND ----------
 
--- MAGIC %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-98-bad-data.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
+-- MAGIC %python
+-- MAGIC dbutils.fs.cp("/Users/glenn.wiebe@databricks.com/ggw_retail/data/customer-98-bad-data.csv", "/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/")
+-- MAGIC # %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-98-bad-data.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
 
 -- COMMAND ----------
 
@@ -335,7 +366,9 @@ SELECT *
 
 -- COMMAND ----------
 
--- MAGIC %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-99-missing-updates.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
+-- MAGIC %python
+-- MAGIC dbutils.fs.cp("/Users/glenn.wiebe@databricks.com/ggw_retail/data/customer-99-missing-updates.csv", "/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/")
+-- MAGIC # %fs cp abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/customer-99-missing-updates.csv abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/
 
 -- COMMAND ----------
 
@@ -343,11 +376,152 @@ dbutils.notebook.exit()
 
 -- COMMAND ----------
 
+-- MAGIC %md ## DLT Queries  
+-- MAGIC   
+-- MAGIC Here are some queries both for the Customer DLT Pipeline, but also the DLT infrastructure
+
+-- COMMAND ----------
+
+-- MAGIC %md ### Process Monitoring Metrics
+-- MAGIC   
+-- MAGIC Here are some queries to monitor progress
+
+-- COMMAND ----------
+
+-- DBTITLE 1,List of input files with id at Cloudfiles pickup location
+SELECT DISTINCT input_file_name() raw_input_file_name,
+       id
+  FROM ggw_retail.customers_raw
+
+-- COMMAND ----------
+
+-- DBTITLE 1,List of files present / as processed by DLT
+SELECT DISTINCT concat("dbfs:", input_file_name) AS processed_file_name
+  FROM ggw_retail.customer_bronze
+
+-- COMMAND ----------
+
+-- DBTITLE 1,Files not yet picked up
+SELECT DISTINCT input_file_name() raw_input_file_name,
+       id
+  FROM ggw_retail.customers_raw
+ WHERE input_file_name() NOT IN 
+       (
+         SELECT DISTINCT concat("dbfs:", input_file_name) AS processed_file_name
+           FROM ggw_retail.customer_bronze
+       )
+;
+
+-- COMMAND ----------
+
+-- DBTITLE 1,Get Info about DLT processing
+SELECT COUNT(DISTINCT input_file_name) AS input_file_count,
+       MAX(update_dt) AS latest_update_dt,
+       COUNT(DISTINCT update_user) AS number_of_updaters
+  FROM ggw_retail.customer_bronze
+
+-- COMMAND ----------
+
+-- MAGIC %md ### Query DLT Event Log
+-- MAGIC   
+-- MAGIC Here are some queries to monitor progress
+
+-- COMMAND ----------
+
+----------------------------------------------------------------------------------------
+-- DLT Event Log & Data Quality Scores
+----------------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ggw_retail.customer_event_log
+ USING delta
+LOCATION 'dbfs:/Users/glenn.wiebe@databricks.com/ggw_retail/dlt/customer/system/events'
+;
+
+SELECT * 
+  FROM ggw_retail.customer_event_log
+;
+
+-- DESCRIBE TABLE EXTENDED ggw_retail.customer_event_log;
+
+-- COMMAND ----------
+
+----------------------------------------------------------------------------------------
+-- Lineage
+----------------------------------------------------------------------------------------
+SELECT details:flow_definition.output_dataset,
+       details:flow_definition.input_datasets,
+       details:flow_definition.flow_type,
+       details:flow_definition.schema,
+       details:flow_definition.explain_text,
+       details:flow_definition
+  FROM ggw_retail.customer_event_log
+ WHERE details:flow_definition IS NOT NULL
+ ORDER BY timestamp
+;
+
+-- COMMAND ----------
+
+----------------------------------------------------------------------------------------
+-- Pipeline Data Components
+----------------------------------------------------------------------------------------
+SELECT details:flow_definition.output_dataset,
+       details:flow_definition.input_datasets
+  FROM ggw_retail.customer_event_log
+ WHERE details:flow_definition IS NOT NULL
+;
+
+-- COMMAND ----------
+
+----------------------------------------------------------------------------------------
+-- Flow Progress & Data Quality Results
+----------------------------------------------------------------------------------------
+SELECT id,
+       details:flow_progress.metrics,
+       details:flow_progress.data_quality.dropped_records,
+       explode(from_json(details:flow_progress:data_quality:expectations
+                ,schema_of_json("[{'name':'str', 'dataset':'str', 'passed_records':42, 'failed_records':42}]"))) expectations,
+       details:flow_progress
+  FROM ggw_retail.customer_event_log
+ WHERE details:flow_progress.metrics IS NOT NULL
+ ORDER BY timestamp
+;
+
+-- COMMAND ----------
+
+----------------------------------------------------------------------------------------
+-- Data Quality Expectation Metrics
+----------------------------------------------------------------------------------------
+SELECT id,
+       expectations.dataset,
+       expectations.name,
+       expectations.failed_records,
+       expectations.passed_records
+  FROM (
+        SELECT id,
+               timestamp,
+               details:flow_progress.metrics,
+               details:flow_progress.data_quality.dropped_records,
+               explode(from_json(details:flow_progress:data_quality:expectations
+                        ,schema_of_json("[{'name':'str', 'dataset':'str', 'passed_records':42, 'failed_records':42}]"))) expectations
+          FROM ggw_retail.customer_event_log
+         WHERE details:flow_progress.metrics IS NOT NULL
+        ) data_quality
+;
+
+
+-- COMMAND ----------
+
 -- MAGIC %md ## -1. Reset solution including csv files
 
 -- COMMAND ----------
 
-
+SELECT *
+  FROM ggw_retail.customers_raw_inputfiles_v
+ WHERE input_file_name NOT IN (
+                                SELECT DISTINCT ('dbfs:' || input_file_name) distinct_input_file_name
+                                           FROM ggw_retail.customer_bronze
+                                          ORDER BY distinct_input_file_name
+                              )
+ ORDER BY update_dt, id ASC
 
 -- COMMAND ----------
 

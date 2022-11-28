@@ -8,13 +8,15 @@
 -- MAGIC %md ### 0. Raw - Access Stream  
 -- MAGIC   
 -- MAGIC **Common Storage Format:** CloudFiles, Kafka, (non-DLT) Delta tables, etc.  
-
--- COMMAND ----------
-
--- -- RAW STREAM - View for new customers
--- CREATE INCREMENTAL LIVE VIEW customer_v
--- COMMENT "View built against raw, streaming Customer data source."
--- AS SELECT * FROM STREAM(ggw_retail.customer)
+-- MAGIC 
+-- MAGIC Here is an example against a Delta table:
+-- MAGIC ```
+-- MAGIC -- RAW STREAM - View for new customers Delta Table example
+-- MAGIC CREATE INCREMENTAL LIVE VIEW customer_v
+-- MAGIC COMMENT "View built against raw, streaming Customer data source."
+-- MAGIC AS SELECT * FROM STREAM(retail.customer)
+-- MAGIC ```  
+-- MAGIC Below we use the streaming Autoloader CloudFiles utility.
 
 -- COMMAND ----------
 
@@ -28,7 +30,7 @@
 -- BRONZE - CloudFiles AutoLoader reads raw streaming files for "new" customer records
 CREATE OR REFRESH STREAMING LIVE TABLE customer_bronze
   (
-    id int COMMENT 'Casted to int',
+    id int,
     first_name string,
     last_name string,
     email string,
@@ -53,7 +55,8 @@ SELECT
     CAST(update_dt AS timestamp),
     update_user,
     input_file_name() input_file_name
-  FROM cloud_files('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/', 'csv', map('header', 'true', 'schema', 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, input_file_name string'))
+  FROM cloud_files('/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/', 'csv', map('header', 'true', 'schema', 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, input_file_name string'))
+--   FROM cloud_files('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/', 'csv', map('header', 'true', 'schema', 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, input_file_name string'))
 ;
 
 -- COMMAND ----------
@@ -115,8 +118,6 @@ TBLPROPERTIES ("quality" = "silver")
 COMMENT "Clean, merged customers"
 ;
 
--- COMMAND ----------
-
 APPLY CHANGES INTO live.customer_silver
 FROM stream(live.customer_bronze2silver_v)
   KEYS (id)
@@ -131,12 +132,12 @@ FROM stream(live.customer_bronze2silver_v)
 
 -- COMMAND ----------
 
--- SERVE - Aggregate Customers by Sales Channel 
-CREATE LIVE TABLE channel_customers_gold
-COMMENT "Aggregate Customers by Sales Channel."
-AS SELECT sales_channel,
-          COUNT(1) customer_count,
-          MAX(update_dt) most_recent_customer_update_dt
-     FROM live.customer_silver
-    GROUP BY sales_channel
-;
+-- -- SERVE - Aggregate Customers by Sales Channel 
+-- CREATE LIVE TABLE channel_customers_gold
+-- COMMENT "Aggregate Customers by Sales Channel."
+-- AS SELECT sales_channel,
+--           COUNT(1) customer_count,
+--           MAX(update_dt) most_recent_customer_update_dt
+--      FROM live.customer_silver
+--     GROUP BY sales_channel
+-- ;

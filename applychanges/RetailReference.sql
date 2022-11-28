@@ -34,7 +34,8 @@ SELECT
     description,
     input_file_name() input_file_name,
     current_timestamp() dlt_ingest_dt,
-    "RetailReference_Live" dlt_ingest_procedure,
+    "RetailReference" dlt_ingest_procedure,
     current_user() dlt_ingest_principal
-  FROM cloud_files('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in_reference/', 'csv')
+  FROM cloud_files('/Users/glenn.wiebe@databricks.com/ggw_retail/data/in_reference/', 'csv')
+--   FROM cloud_files('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in_reference/', 'csv')
 --                    ,map('header', 'true', 'schema', 'channelId int, channelName string, description string'))
