@@ -1,14 +1,14 @@
 -- Databricks notebook source
 -- MAGIC %md ## Delta Live Table - Customer Change Data Capture Demo. 
 -- MAGIC   
--- MAGIC ![DLT Process Flow](https://raw.githubusercontent.com/ggwiebe/db-fe-dlt/main/dlt/applychanges/images/DLT_Process_Flow.png)
+-- MAGIC ![DLT Process Flow](https://raw.githubusercontent.com/ggwiebe/ggw_dlt/main/applychanges/images/DLT_Process_Flow.png)
 
 -- COMMAND ----------
 
 -- MAGIC %md ### 0. Raw - Access Stream  
 -- MAGIC   
 -- MAGIC **Common Storage Format:** CloudFiles, Kafka, (non-DLT) Delta tables, etc.  
--- MAGIC 
+-- MAGIC
 -- MAGIC Here is an example against a Delta table:
 -- MAGIC ```
 -- MAGIC -- RAW STREAM - View for new customers Delta Table example
@@ -55,7 +55,8 @@ SELECT
     CAST(update_dt AS timestamp),
     update_user,
     input_file_name() input_file_name
-  FROM cloud_files('/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/', 'csv', map('header', 'true', 'schema', 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, input_file_name string'))
+  FROM cloud_files('file:/Workspace/Repos/glenn.wiebe@databricks.com/ggw_dlt/applychanges/data/in/', 'csv', map('header', 'true', 'schema', 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, input_file_name string'))
+-- FROM cloud_files('/Users/glenn.wiebe@databricks.com/ggw_retail/data/in/', 'csv', map('header', 'true', 'schema', 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, input_file_name string'))
 --   FROM cloud_files('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/ggw_retail/data/in/', 'csv', map('header', 'true', 'schema', 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, input_file_name string'))
 ;
 
@@ -132,12 +133,12 @@ FROM stream(live.customer_bronze2silver_v)
 
 -- COMMAND ----------
 
--- -- SERVE - Aggregate Customers by Sales Channel 
--- CREATE LIVE TABLE channel_customers_gold
--- COMMENT "Aggregate Customers by Sales Channel."
--- AS SELECT sales_channel,
---           COUNT(1) customer_count,
---           MAX(update_dt) most_recent_customer_update_dt
---      FROM live.customer_silver
---     GROUP BY sales_channel
--- ;
+-- SERVE - Aggregate Customers by Sales Channel 
+CREATE LIVE TABLE channel_customers_gold
+COMMENT "Aggregate Customers by Sales Channel."
+AS SELECT sales_channel,
+          COUNT(1) customer_count,
+          MAX(update_dt) most_recent_customer_update_dt
+     FROM live.customer_silver
+    GROUP BY sales_channel
+;

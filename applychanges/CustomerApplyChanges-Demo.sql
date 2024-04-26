@@ -1,7 +1,7 @@
 -- Databricks notebook source
 -- MAGIC %md ## DLT Architecture  
 -- MAGIC   
--- MAGIC ![DLT Technical Architecture](https://raw.githubusercontent.com/ggwiebe/db-fe-dlt/main/dlt/applychanges/images/DLT_Technical_Architecture.png)
+-- MAGIC ![DLT Technical Architecture](https://raw.githubusercontent.com/ggwiebe/ggw_dlt/main/applychanges/images/DLT_Technical_Architecture.png)
 
 -- COMMAND ----------
 
@@ -21,7 +21,7 @@ CREATE WIDGET TEXT data_loc DEFAULT "/data";
 -- MAGIC db_name = dbutils.widgets.get('db_name')
 -- MAGIC data_loc = dbutils.widgets.get('data_loc')
 -- MAGIC root_location = dbutils.widgets.get('root_location')
--- MAGIC 
+-- MAGIC
 -- MAGIC print("Running CustomerApplyChanges into db {}, using root location: {}".format(db_name,root_location))
 
 -- COMMAND ----------
@@ -49,15 +49,15 @@ DESCRIBE DATABASE EXTENDED ${db_name};
 
 -- -- Customer Channel Reference Table
 -- -- DROP TABLE $db_name.channel;
--- CREATE TABLE IF NOT EXISTS $db_name.channel (
---   channelId integer, 
---   channelName string,
---   description string
--- );
--- INSERT INTO $db_name.channel VALUES (1, 'RETAIL', 'Customer originated from Retail Stores');
--- INSERT INTO $db_name.channel VALUES (2, 'WEB', 'Customer originated from Online properties');
--- INSERT INTO $db_name.channel VALUES (3, 'PARTNER', 'Customer referred from Partners');
--- INSERT INTO $db_name.channel VALUES (9, 'OTHER', 'Unattributed customer origination');
+CREATE TABLE IF NOT EXISTS $db_name.channel (
+  channelId integer, 
+  channelName string,
+  description string
+);
+INSERT INTO $db_name.channel VALUES (1, 'RETAIL', 'Customer originated from Retail Stores');
+INSERT INTO $db_name.channel VALUES (2, 'WEB', 'Customer originated from Online properties');
+INSERT INTO $db_name.channel VALUES (3, 'PARTNER', 'Customer referred from Partners');
+INSERT INTO $db_name.channel VALUES (9, 'OTHER', 'Unattributed customer origination');
 
 -- COMMAND ----------
 
@@ -80,7 +80,7 @@ DESCRIBE DATABASE EXTENDED ${db_name};
 -- MAGIC # dbutils.fs.mkdirs('/Users/glenn.wiebe@databricks.com/{}/data/in'.format(db_name))
 -- MAGIC # dbutils.fs.mkdirs('/Users/glenn.wiebe@databricks.com/{}/data/out'.format(db_name))
 -- MAGIC # dbutils.fs.ls('abfss://ggwstdlrscont1@ggwstdlrs.dfs.core.windows.net/{}/data'.format(db_name))
--- MAGIC 
+-- MAGIC
 -- MAGIC display(dbutils.fs.ls('/Users/glenn.wiebe@databricks.com/{}/data/'.format(db_name)))
 -- MAGIC display(dbutils.fs.ls('/Users/glenn.wiebe@databricks.com/{}/data/in/'.format(db_name)))
 -- MAGIC # dbutils.fs.rm('/Users/glenn.wiebe@databricks.com/{}/data/in/'.format(db_name),True)
@@ -108,6 +108,22 @@ OPTIONS (
   )
 ;
 SELECT "$root_location$data_loc/customer*.csv"
+
+-- COMMAND ----------
+
+CREATE TABLE customers_source 
+  (
+      id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string
+  )
+ USING CSV
+OPTIONS (
+    path "file:/Workspace/Repos/glenn.wiebe@databricks.com/ggw_dlt/applychanges/data/customer*.csv",
+    header "true",
+    -- inferSchema "true",
+    mode "FAILFAST",
+    schema 'id int, first_name string, last_name string, email string, channel string, active int, active_end_date date, update_dt timestamp, update_user string, '
+  )
+;
 
 -- COMMAND ----------
 

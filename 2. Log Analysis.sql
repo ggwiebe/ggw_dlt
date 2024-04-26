@@ -61,16 +61,15 @@ ORDER BY timestamp
 
 -- COMMAND ----------
 
--- MAGIC %sql
--- MAGIC SELECT
--- MAGIC   details:flow_definition.output_dataset,
--- MAGIC   details:flow_definition.input_datasets,
--- MAGIC   details:flow_definition.flow_type,
--- MAGIC   details:flow_definition.schema,
--- MAGIC   details:flow_definition
--- MAGIC FROM event_log
--- MAGIC WHERE details:flow_definition IS NOT NULL
--- MAGIC ORDER BY timestamp
+SELECT
+  details:flow_definition.output_dataset,
+  details:flow_definition.input_datasets,
+  details:flow_definition.flow_type,
+  details:flow_definition.schema,
+  details:flow_definition
+FROM event_log
+WHERE details:flow_definition IS NOT NULL
+ORDER BY timestamp
 
 -- COMMAND ----------
 
